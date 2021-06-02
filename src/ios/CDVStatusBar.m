@@ -92,11 +92,7 @@ static const void *kStatusBarStyle = &kStatusBarStyle;
 
 -(void)cordovaViewWillAppear:(NSNotification*)notification
 {
-    //add a small delay ( 0.1 seconds ) or statusbar size will be wrong
-    __weak CDVStatusBar* weakSelf = self;
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.1 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-        [weakSelf resizeWebView];
-    });
+    [self resizeWebView];
 }
 
 -(void)statusBarDidChangeFrame:(NSNotification*)notification
@@ -123,6 +119,7 @@ static const void *kStatusBarStyle = &kStatusBarStyle;
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(cordovaViewWillAppear:) name: @"CDVViewWillAppearNotification" object:nil];
 
     _statusBarOverlaysWebView = YES; // default
+    _statusBarOpacity = 0; // default
 
     [self initializeStatusBarBackgroundView];
 
@@ -134,14 +131,15 @@ static const void *kStatusBarStyle = &kStatusBarStyle;
     if ([self settingForKey:setting]) {
         [self _backgroundColorByHexString:[self settingForKey:setting]];
     }
+    
+    setting  = @"StatusBarOpacity";
+    if ([self settingForKey:setting]) {
+        _statusBarOpacity = [[self settingForKey:setting] doubleValue];
+    }
 
     setting  = @"StatusBarStyle";
     if ([self settingForKey:setting]) {
-        NSString * styleSetting = [self settingForKey:setting];
-        if ([styleSetting isEqualToString:@"blacktranslucent"] || [styleSetting isEqualToString:@"blackopaque"]) {
-            NSLog(@"%@ is deprecated and will be removed in next major release, use lightcontent", styleSetting);
-        }
-        [self setStatusBarStyle:styleSetting];
+        [self setStatusBarStyle:[self settingForKey:setting]];
     }
 
     setting  = @"StatusBarDefaultScrollToTop";
@@ -218,10 +216,34 @@ static const void *kStatusBarStyle = &kStatusBarStyle;
     _statusBarBackgroundView.autoresizesSubviews = YES;
 }
 
+- (void) initializeStatusBarOverlaysWebViewBackgroundView
+{
+    CGRect statusBarFrame = [UIApplication sharedApplication].statusBarFrame;
+
+    if ([[UIApplication sharedApplication]statusBarOrientation] == UIInterfaceOrientationPortraitUpsideDown &&
+        statusBarFrame.size.height + statusBarFrame.origin.y == [self.viewController.view.window bounds].size.height) {
+
+        // When started in upside-down orientation on iOS 7, status bar will be bound to lower edge of the
+        // screen (statusBarFrame.origin.y will be somewhere around screen height). In this case we need to
+        // correct frame's coordinates
+        statusBarFrame.origin.y = 0;
+    }
+
+    _statusBarBackgroundView = [[UIView alloc] initWithFrame:statusBarFrame];
+    _statusBarBackgroundView.backgroundColor = _statusBarBackgroundColor;
+    _statusBarBackgroundView.alpha = _statusBarOpacity;
+    _statusBarBackgroundView.autoresizingMask = (UIViewAutoresizingFlexibleWidth  | UIViewAutoresizingFlexibleBottomMargin);
+    _statusBarBackgroundView.autoresizesSubviews = YES;
+}
+
 - (void) setStatusBarOverlaysWebView:(BOOL)statusBarOverlaysWebView
 {
     // we only care about the latest iOS version or a change in setting
     if (statusBarOverlaysWebView == _statusBarOverlaysWebView) {
+        if(_statusBarBackgroundColor){
+            [self initializeStatusBarOverlaysWebViewBackgroundView];
+            [self.webView.superview addSubview:_statusBarBackgroundView];
+        }
         return;
     }
 
@@ -298,12 +320,7 @@ static const void *kStatusBarStyle = &kStatusBarStyle;
 
 - (void) styleDefault:(CDVInvokedUrlCommand*)command
 {
-    if (@available(iOS 13.0, *)) {
-        // TODO - Replace with UIStatusBarStyleDarkContent once Xcode 10 support is dropped
-        [self setStyleForStatusBar:3];
-    } else {
-        [self setStyleForStatusBar:UIStatusBarStyleDefault];
-    }
+    [self setStyleForStatusBar:UIStatusBarStyleDefault];
 }
 
 - (void) styleLightContent:(CDVInvokedUrlCommand*)command

@@ -27,6 +27,7 @@
     BOOL _uiviewControllerBasedStatusBarAppearance;
     UIColor* _statusBarBackgroundColor;
     NSString* _eventsCallbackId;
+    CGFloat _statusBarOpacity;
 }
 
 @property (atomic, assign) BOOL statusBarOverlaysWebView;
