@@ -24,6 +24,7 @@ description: Control the device status bar.
 # cordova-plugin-statusbar
 
 > This is a original cordova status bar fork with a single additional property that allows to control the status bar background transparency.
+> Because the original plugin on ios if it overlays webview doesn't set color
 
 ## Installation
 
